@@ -198,7 +198,7 @@ def render_path(render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, savedi
     for i in tqdm(W):
         v_map = visibility[:, i, :]
         if savedir is not None:
-            rgb8 = to8b(v_map)
+            rgb8 = to8b(v_map.cpu().numpy())
             filename = os.path.join(savedir, '{:03d}.png'.format(i))
             imageio.imwrite(filename, rgb8)
             v_maps.append(rgb8)
