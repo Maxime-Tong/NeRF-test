@@ -1,1 +1,1 @@
-python run_nerf.py --config configs/lego.txt --render_only --ft_path logs/lego-test/200000.tar
+python render_visibility.py --config configs/lego.txt --render_only --ft_path logs/lego-test/200000.tar --i_poses 0
