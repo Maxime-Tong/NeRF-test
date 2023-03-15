@@ -34,7 +34,7 @@ class ContrastEntropyMap:
         self.src_img = patcher.src_img
     
     def _calc_shannon_entropy(self, img):
-        histogram, bin_edges = np.histogram(img, np.arange(255), density=True)
+        histogram, bin_edges = np.histogram(img, np.arange(255, dtype=np.float32), density=True)
         histogram_length = sum(histogram)
         samples_probability = [float(h) / histogram_length for h in histogram]
 
@@ -51,7 +51,8 @@ class ContrastEntropyMap:
                     patches[i * map_w + j]
                 )
                 ctrast_ent_map[i][j] = entropy
-        ctrast_ent_map = ctrast_ent_map / np.max(ctrast_ent_map)
+                
+        ctrast_ent_map = ctrast_ent_map / (np.max(ctrast_ent_map) + 0.00001)
         return ctrast_ent_map
     
 class EntropyMap3D:

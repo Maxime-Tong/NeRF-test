@@ -855,7 +855,7 @@ def train():
             # [64, H, W]
             alpha = extras['alpha'][:, :, :64].cpu().permute(2, 0, 1)
             # [64, 20, 20]
-            entropy_map = EntropyMap3D(to8b(alpha.numpy()), (10, 10)).get_ent_map()
+            entropy_map = EntropyMap3D(alpha.numpy() * 255, (20, 20)).get_ent_map()
             mean_entropy = np.mean(entropy_map)
             np.save('results/lego/entropy/alpha_ent_map%d.npy'%i, entropy_map)
             tqdm.write(f"[TRAIN] Iter: {i} Loss: {loss.item()} PSNR: {psnr} entropy mean: {mean_entropy}")
