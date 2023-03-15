@@ -18,7 +18,7 @@ from load_deepvoxels import load_dv_data
 from load_blender import load_blender_data
 from load_LINEMOD import load_LINEMOD_data
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "2,1,0,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3,1,0,2"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 np.random.seed(0)
 DEBUG = False
@@ -309,7 +309,7 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
     rgb_map = torch.sum(color_map, -2)  # [N_rays, 3]
     
     # rgbs_map = torch.sum(color_map[..., 52:55, :], -2)
-    rgbs_map = torch.stack([color_map[..., 18, :], color_map[..., 54, :]], -1)
+    rgbs_map = torch.stack([color_map[..., 18, :], color_map[..., 54, :]], -2)
     
     depth_map = torch.sum(weights * z_vals, -1)
     disp_map = 1./torch.max(1e-10 * torch.ones_like(depth_map), depth_map / torch.sum(weights, -1))
@@ -413,6 +413,8 @@ def render_rays(ray_batch,
 
         run_fn = network_fn if network_fine is None else network_fine
 #         raw = run_network(pts, fn=run_fn)
+
+        # [:, :, 64 + 128, 4] N_impertance = 128 !!!!
         raw = network_query_fn(pts, viewdirs, run_fn)
 
         rgb_map, disp_map, acc_map, weights, depth_map, rgbs_map = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
@@ -717,6 +719,7 @@ def train():
 
 
     N_iters = 200000 + 1
+    # N_iters = 300
     print('Begin')
     print('TRAIN views are', i_train)
     print('TEST views are', i_test)
@@ -726,7 +729,8 @@ def train():
     # writer = SummaryWriter(os.path.join(basedir, 'summaries', expname))
     
     start = start + 1
-    diff_psnrs = []
+    inc_psnr_data = []
+    olc_psnr_data = []
     # global_psnrs = []
     for i in trange(start, N_iters):
         time0 = time.time()
@@ -842,12 +846,14 @@ def train():
                 render_path(torch.Tensor(poses[i_test]).to(device), hwf, K, args.chunk, render_kwargs_test, gt_imgs=images[i_test], savedir=testsavedir)
             print('Saved test set')
 
-        # if i == 1:
-        #     img_i = 0
-        #     with torch.no_grad():
-        #         extras = render_in_one_pose(torch.Tensor(poses[img_i]).to(device), hwf, K, args.chunk, render_kwargs_test, savedir=None)
-        #     # [H, W, 3]
-        #     img_init = extras['rgbs_map'].cpu()
+        if i == 1:
+            img_i = 0
+            with torch.no_grad():
+                extras = render_in_one_pose(torch.Tensor(poses[img_i]).to(device), hwf, K, args.chunk, render_kwargs_test, savedir=None)
+            # [H, W, 3]
+            rgbs_map = extras['rgbs_map'].cpu()
+            inc_init = rgbs_map[70:200, 120:280, 0, :]
+            olc_init = rgbs_map[70:200, 120:280, 1, :]
         
         if i%args.i_print==0:
             
@@ -856,12 +862,15 @@ def train():
                 extras = render_in_one_pose(torch.Tensor(poses[img_i]).to(device), hwf, K, args.chunk, render_kwargs_test, savedir=None)
             # [H, W, 3]
             rgbs_map = extras['rgbs_map'].cpu()
-            dif_psnr = mse2psnr(img2mse(rgbs_map[70:200, 120:280, 0, :], rgbs_map[70:200, 120:280, 1, :]))
+            
+            inc_psnr = mse2psnr(img2mse(rgbs_map[70:200, 120:280, 0, :], inc_init))
+            olc_psnr = mse2psnr(img2mse(rgbs_map[70:200, 120:280, 1, :], olc_init))
 
-            diff_psnrs.append(dif_psnr)
+            inc_psnr_data.append(inc_psnr.cpu().numpy())
+            olc_psnr_data.append(olc_psnr.cpu().numpy())
             # global_psnrs.append(global_psnr)
             # tqdm.write(f"[TRAIN] Iter: {i} Loss: {loss.item()}  PSNR: {psnr.item()} occlusion psnr: {dif_psnr} global psnr: {global_psnr}")
-            tqdm.write(f"[TRAIN] Iter: {i} Loss: {loss.item()}  PSNR: {psnr.item()} difference psnr: {dif_psnr}")
+            tqdm.write(f"[TRAIN] Iter: {i} Loss: {loss.item()}  inc PSNR: {inc_psnr} olc PSNR: {olc_psnr}")
             
         """
             print(expname, i, psnr.numpy(), loss.numpy(), global_step.numpy())
@@ -907,9 +916,11 @@ def train():
 
         global_step += 1
         
-    diff_psnrs = np.asarray(diff_psnrs)
+    inc_psnr_data = np.concatenate(inc_psnr_data, 0)
+    olc_psnr_data = np.concatenate(olc_psnr_data, 0)
     # global_psnrs = np.asarray(global_psnrs)
-    np.save('results/lego/dif_psnr_pose18&54.npy', diff_psnrs)
+    np.save('results/lego/inc_psnr_pose18&54.npy', inc_psnr_data)
+    np.save('results/lego/olc_psnr_pose18&54.npy', olc_psnr_data)
     # np.save('results/lego/global_psnr_pose54.npy', global_psnrs)
 
 if __name__=='__main__':

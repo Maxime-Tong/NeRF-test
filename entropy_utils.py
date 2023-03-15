@@ -20,7 +20,6 @@ class Patcher:
     def get_patches(self):
         patches = []
         patch_num_h, patch_num_w = self._cal_num_patches()
-        print(patch_num_h, patch_num_w)
         for i in range(patch_num_h):
             for j in range(patch_num_w):
                 i_st, i_ed = i * self.patch_h, (i + 1) * self.patch_h
@@ -54,3 +53,17 @@ class ContrastEntropyMap:
                 ctrast_ent_map[i][j] = entropy
         ctrast_ent_map = ctrast_ent_map / np.max(ctrast_ent_map)
         return ctrast_ent_map
+    
+class EntropyMap3D:
+    def __init__ (self, scene, patch_size):
+        self.scene = scene
+        self.patch_size = patch_size
+    
+    def get_ent_map(self):
+        scene_ent_map = []
+        for img in self.scene:
+            patcher = Patcher(img, self.patch_size)
+            img_ent_map = ContrastEntropyMap(patcher).get_ctrast_ent_map()
+            scene_ent_map.append(img_ent_map)
+        return np.stack(scene_ent_map, axis=0)
+            

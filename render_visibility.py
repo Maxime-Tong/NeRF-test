@@ -308,7 +308,7 @@ def render_path(render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, savedi
         focal = focal/render_factor
 
     c2w = render_poses[args.i_poses]
-    visibility =  render(H, W, K, chunk=chunk, c2w=c2w[:3,:4], **render_kwargs)
+    visibility = render(H, W, K, chunk=chunk, c2w=c2w[:3,:4], **render_kwargs)
     v_maps = []
     
     N_samples = visibility.shape[-1]
