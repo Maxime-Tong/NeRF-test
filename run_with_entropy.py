@@ -20,7 +20,7 @@ from load_LINEMOD import load_LINEMOD_data
 from entropy_utils import Patcher, ContrastEntropyMap, EntropyMap3D
 
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1,0,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3,2,1,0"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 np.random.seed(0)
 DEBUG = False
@@ -855,9 +855,9 @@ def train():
             # [64, H, W]
             alpha = extras['alpha'][:, :, :64].cpu().permute(2, 0, 1)
             # [64, 20, 20]
-            entropy_map = EntropyMap3D(alpha.numpy() * 255, (20, 20)).get_ent_map()
+            entropy_map = EntropyMap3D(alpha.numpy() * 255., (10, 10)).get_ent_map()
             mean_entropy = np.mean(entropy_map)
-            np.save('results/lego/entropy/alpha_ent_map%d.npy'%i, entropy_map)
+            np.save('results/lego/entropy_10_10/alpha_ent_map%d.npy'%i, entropy_map)
             tqdm.write(f"[TRAIN] Iter: {i} Loss: {loss.item()} PSNR: {psnr} entropy mean: {mean_entropy}")
             
         """
