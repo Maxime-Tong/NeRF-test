@@ -1,13 +1,14 @@
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+import cv2
 
 class Patcher:
     def __init__(self, img, patch_size):
         self.src_img = img
         self.img_size = img.shape
         self.patch_size = patch_size
-        self.patch_h, self.patch_w = patch_size
+        self.patch_h, self.patch_w, self.patch_d = patch_size
 
     def _cal_num_patches(self):
         patch_num = (int(self.img_size[0] / self.patch_size[0]),
@@ -20,11 +21,12 @@ class Patcher:
     def get_patches(self):
         patches = []
         patch_num_h, patch_num_w = self._cal_num_patches()
+        flat_patch_h, flat_patch_w = self.patch_h * self.patch_d, self.patch_w * self.patch_d
         for i in range(patch_num_h):
             for j in range(patch_num_w):
                 i_st, i_ed = i * self.patch_h, (i + 1) * self.patch_h
                 j_st, j_ed = j * self.patch_w, (j + 1) * self.patch_w
-                patches.append(self.src_img[i_st:i_ed, j_st:j_ed])
+                patches.append(self.src_img[i_st:i_ed, j_st:j_ed].reshape(flat_patch_h, flat_patch_w))
 
         return patches
 
@@ -57,14 +59,28 @@ class ContrastEntropyMap:
     
 class EntropyMap3D:
     def __init__ (self, scene, patch_size):
+        # [H, W, N_samples]
         self.scene = scene
         self.patch_size = patch_size
     
     def get_ent_map(self):
-        scene_ent_map = []
-        for img in self.scene:
-            patcher = Patcher(img, self.patch_size)
-            img_ent_map = ContrastEntropyMap(patcher).get_ctrast_ent_map()
-            scene_ent_map.append(img_ent_map)
-        return np.stack(scene_ent_map, axis=0)
-            
+        patcher = Patcher(self.scene, self.patch_size)
+        scene_ent_map = ContrastEntropyMap(patcher).get_ctrast_ent_map()
+        return scene_ent_map
+
+class EntropyHeatmap:
+    def __init__(self, img):
+        self.img = img
+        self.img_h, self.img_w, self.img_channels = img.shape
+    
+    def overlay_heatmap_on_image(self, heatmap):
+        heatmap = cv2.applyColorMap(np.uint8(255*heatmap), cv2.COLORMAP_JET)
+        heatmap = np.float32(heatmap)/255
+        overlay = heatmap * 0.6 + np.float32(self.img)/255
+        overlay = overlay / np.max(overlay)
+        return np.uint8(255*overlay)
+    
+    def apply_heatmap(self, entropy_map):
+        entropy_map_extended = cv2.resize(entropy_map, (self.img_w, self.img_h), interpolation=cv2.INTER_CUBIC)
+        return self.overlay_heatmap_on_image(entropy_map_extended)
+        
